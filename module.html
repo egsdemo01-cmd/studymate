@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% block body %}
+<h1>{{ icon }} {{ title }}</h1>
+{% if summary %}
+<div class="grid">
+  <div class="card stat"><small>Overall %</small><b>{{ summary.overall }}%</b></div>
+  <div class="card stat"><small>Total marks</small><b>{{ summary.total|round(1) }} / {{ summary.out_of|round(1) }}</b></div>
+  <div class="card stat"><small>Average marks</small><b>{{ summary.avg }}</b></div>
+  <div class="card stat"><small>Highest</small><b>{{ summary.best[0] }} ({{ summary.best[1] }}%)</b></div>
+  <div class="card stat"><small>Lowest</small><b>{{ summary.worst[0] }} ({{ summary.worst[1] }}%)</b></div>
+</div>
+<div class="card"><canvas id="c" height="90"></canvas></div>
+<script>
+const per = {{ summary.per|tojson }};   // list of [subject, percentage]
+new Chart(document.getElementById('c'), {type:'bar', data:{labels:per.map(x=>x[0]),
+  datasets:[{label:'Subject %', data:per.map(x=>x[1]), backgroundColor:'#6c5ce7'}]}, options:{scales:{y:{max:100,beginAtZero:true}}}});
+</script>
+{% endif %}
+<form method="post" action="/m/{{ mod }}/save" class="card form">
+  <h3>{{ 'Edit' if edit else 'Add new' }}</h3>
+  {% if edit %}<input type="hidden" name="id" value="{{ edit.id }}">{% endif %}
+  {% for f in fields %}
+    <label>{{ f[1] }}
+    {% if f[2] == 'subject' %}
+      <select name="{{ f[0] }}" required>{% for s in subs %}<option value="{{ s.id }}" {{ 'selected' if edit and edit[f[0]] == s.id }}>{{ s.name }}</option>{% endfor %}</select>
+    {% elif f[2] == 'select' %}
+      <select name="{{ f[0] }}">{% for v, l in f[3] %}<option value="{{ v }}" {{ 'selected' if edit and edit[f[0]]|string == v }}>{{ l }}</option>{% endfor %}</select>
+    {% elif f[2] == 'textarea' %}
+      <textarea name="{{ f[0] }}" rows="4" required>{{ edit[f[0]] if edit }}</textarea>
+    {% else %}
+      <input name="{{ f[0] }}" type="{{ f[2] }}" {{ 'step=any min=0' if f[2] == 'number' }} value="{{ edit[f[0]] if edit else '' }}" {{ 'required' if f[0] != 'teacher' }}>
+    {% endif %}</label>
+  {% endfor %}
+  <button>{{ 'Update' if edit else 'Add' }}</button>
+  {% if edit %}<a href="/m/{{ mod }}">Cancel</a>{% endif %}
+</form>
+<form class="search" method="get"><input name="q" value="{{ q }}" placeholder="🔍 Search {{ title }}..."><button>Search</button></form>
+<div class="card scroll"><table>
+  <tr>{% for f in fields %}<th>{{ f[1] }}</th>{% endfor %}{% if extra_head %}<th>{{ extra_head }}</th>{% endif %}<th>Actions</th></tr>
+  {% for r in rows %}
+  <tr>{% for v in r.view %}<td>{{ v }}</td>{% endfor %}{% if extra_head %}<td><b>{{ r.extra }}</b></td>{% endif %}
+    <td><a href="/m/{{ mod }}?edit={{ r.id }}">✏️ Edit</a>
+      <form method="post" action="/m/{{ mod }}/delete/{{ r.id }}" style="display:inline" onsubmit="return confirm('Delete this item?')"><button class="danger">🗑️</button></form></td></tr>
+  {% else %}<tr><td colspan="9">Nothing here yet. Add your first item above.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

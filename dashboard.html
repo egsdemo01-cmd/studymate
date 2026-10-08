@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% block body %}
+<h1>Welcome, {{ p.name }} 👋</h1>
+<div class="grid">
+  <div class="card stat"><small>Class</small><b>{{ p.class or '12' }}</b></div>
+  <div class="card stat"><small>Subjects</small><b>{{ n_sub }}</b></div>
+  <div class="card stat"><small>Upcoming exams</small><b>{{ exams|length }}</b></div>
+  <div class="card stat"><small>Pending tasks</small><b>{{ pending }}</b></div>
+  <div class="card stat"><small>Overall marks</small><b>{{ summary.overall if summary else '--' }}%</b></div>
+  <div class="card stat"><small>Study hours</small><b>{{ hours }}</b></div>
+</div>
+<div class="grid">
+  <div class="card"><h3>⏳ Next exam</h3>
+    {% if exams %}<p class="big">{{ exams[0].days }} days</p><p>{{ exams[0].name }} — {{ exams[0].sub }} ({{ exams[0].date }})</p>
+    {% else %}<p>No upcoming exams. <a href="/m/exams">Add one</a></p>{% endif %}</div>
+  <div class="card"><h3>📈 Study progress: {{ progress }}%</h3><div class="bar"><div style="width:{{ progress }}%"></div></div></div>
+</div>
+{% if summary %}<div class="card"><h3>Subject-wise percentage</h3><canvas id="c" height="90"></canvas></div>
+<script>
+const per = {{ summary.per|tojson }};
+new Chart(document.getElementById('c'), {type:'bar', data:{labels:per.map(x=>x[0]),
+  datasets:[{label:'%', data:per.map(x=>x[1]), backgroundColor:'#00b894'}]}, options:{scales:{y:{max:100,beginAtZero:true}}}});
+</script>{% endif %}{% endblock %}

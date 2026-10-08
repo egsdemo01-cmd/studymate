@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block body %}
+<form method="post" class="card auth">
+  <h1>🎓 StudyMate</h1><p>Class 12 CBSE Study & Exam Portal</p>
+  {% if register %}<input name="name" placeholder="Full name" required>{% endif %}
+  <input name="username" placeholder="Username" required>
+  <input name="password" type="password" placeholder="Password" required>
+  <button>{{ 'Register' if register else 'Login' }}</button>
+  <p>{% if register %}Have an account? <a href="/login">Login</a>{% else %}New here? <a href="/register">Register</a><br><small>Teacher demo: teacher / teacher123</small>{% endif %}</p>
+</form>{% endblock %}

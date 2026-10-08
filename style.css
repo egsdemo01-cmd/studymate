@@ -1,0 +1,22 @@
+:root{--bg:#f4f6fb;--card:#fff;--text:#2d3436;--accent:#6c5ce7;--line:#e5e8f0}
+.dark{--bg:#14161f;--card:#1e2130;--text:#e6e8f0;--line:#2d3248}
+*{box-sizing:border-box}body{margin:0;font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+aside{position:fixed;top:0;left:0;bottom:0;width:230px;background:#2d2a5e;padding:20px 12px;overflow:auto;transition:.3s}
+aside h2{color:#fff;margin:0 0 15px 10px}aside a{display:block;color:#cfd0ee;padding:10px 14px;border-radius:10px;text-decoration:none;margin:3px 0;transition:.2s}
+aside a:hover{background:var(--accent);color:#fff;transform:translateX(4px)}
+main{margin-left:230px;padding:24px}main.center{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;flex-direction:column}
+.card{background:var(--card);border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 4px 14px rgba(0,0,0,.07);transition:.2s}
+.grid .card:hover{transform:translateY(-4px)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.grid .card{margin:0}
+.stat small{opacity:.7}.stat b{display:block;font-size:1.6rem;margin-top:6px;color:var(--accent)}.big{font-size:2.4rem;margin:0;color:var(--accent);font-weight:700}
+input,select,textarea{width:100%;padding:10px;margin:5px 0 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font:inherit}
+button{background:var(--accent);color:#fff;border:0;padding:10px 18px;border-radius:10px;cursor:pointer;transition:.2s}button:hover{opacity:.85;transform:scale(1.04)}
+button.ghost{background:var(--card);color:var(--text);border:1px solid var(--line)}button.danger{background:#d63031;padding:4px 10px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 16px}.form h3,.form button{grid-column:1/-1;justify-self:start}
+.search{display:flex;gap:8px}.search input{margin:0}
+table{width:100%;border-collapse:collapse}th,td{padding:10px;text-align:left;border-bottom:1px solid var(--line)}tr:hover td{background:var(--bg)}
+.scroll{overflow-x:auto}a{color:var(--accent);text-decoration:none}
+.bar{background:var(--line);border-radius:20px;height:18px;overflow:hidden}.bar div{height:100%;background:linear-gradient(90deg,#6c5ce7,#00b894)}
+.flash{background:#ffeaa7;color:#2d3436;padding:10px 16px;border-radius:10px;margin:10px 0}.auth{width:340px}.auth h1{margin:0}
+@media(max-width:800px){aside{transform:translateX(-100%)}aside.open{transform:none;z-index:9}main{margin-left:0}}
+body.collapsed aside{transform:translateX(-100%)}body.collapsed main{margin-left:0}

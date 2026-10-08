@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudyMate</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>if (localStorage.theme === 'dark') document.documentElement.classList.add('dark');</script>
+</head><body>
+{% if session.uid %}
+<aside id="side">
+  <h2>🎓 StudyMate</h2>
+  {% if session.role == 'student' %}
+  <a href="/dashboard">🏠 Dashboard</a>
+  {% for k, m in modules.items() %}<a href="/m/{{ k }}">{{ m[1] }} {{ m[0] }}</a>{% endfor %}
+  <a href="/profile">👤 Profile</a>
+  {% else %}<a href="/admin">🧑‍🏫 Teacher Panel</a>{% endif %}
+  <a href="/logout">🚪 Logout ({{ session.user }})</a>
+</aside>
+<main>
+  <button class="ghost" onclick="toggleMenu()">☰ Menu</button>
+  <button class="ghost" onclick="toggleTheme()">🌓 Dark / Light</button>
+{% else %}<main class="center">{% endif %}
+  {% for msg in get_flashed_messages() %}<div class="flash">{{ msg }}</div>{% endfor %}
+  {% block body %}{% endblock %}
+</main>
+<script>
+// Show/hide the sidebar: on phones use the 'open' class, on big screens use 'collapsed'
+function toggleMenu() {
+  if (window.innerWidth <= 800) document.getElementById('side').classList.toggle('open');
+  else document.body.classList.toggle('collapsed');
+}
+// Toggle dark mode and remember it in the browser
+function toggleTheme() {
+  document.documentElement.classList.toggle('dark');
+  localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+</script>
+</body></html>
