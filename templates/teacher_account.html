@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block body %}
+<h1>⚙️ My Teacher Record</h1>
+<p>Editing or deleting needs the <b>admin password</b> and <b>your own login password</b>.</p>
+<form method="post" class="card form">
+  <h3>Edit record</h3>
+  <label>Name<input name="name" value="{{ t.name }}" required></label>
+  <label>Class<input name="class" value="{{ t.class }}" required></label>
+  <label>Division<input name="division" value="{{ t.division }}" required></label>
+  <label>Admin password<input name="admin_password" type="password" required></label>
+  <label>Your password<input name="password" type="password" required></label>
+  <button>Save changes</button>
+</form>
+<form method="post" action="/teacher/delete" class="card form" onsubmit="return confirm('Delete this teacher record permanently?')">
+  <h3>🗑️ Delete record</h3>
+  <label>Admin password<input name="admin_password" type="password" required></label>
+  <label>Your password<input name="password" type="password" required></label>
+  <button class="danger">Delete my teacher record</button>
+</form>{% endblock %}
