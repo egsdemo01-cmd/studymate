@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block body %}
-<form method="post" class="card auth">
+<form method="post" class="card auth" id="regForm" onsubmit="return askAdmin()">
   <h1>🎓 StudyMate</h1><p>Class 12 CBSE Study & Exam Portal</p>
   {% if register %}
   <!-- Choose who is registering; JavaScript shows the matching fields -->
@@ -10,6 +10,7 @@
   <input name="username" placeholder="Username" required>
   <input name="password" type="password" placeholder="Password" required>
   {% if register %}
+  <input type="hidden" name="admin_password" id="adminPw">
   <div id="studentBox">
     <label>Your class teacher (HRT) *
     <select name="teacher_id">
@@ -29,8 +30,33 @@
     document.getElementById('teacherBox').style.display = isTeacher ? 'block' : 'none';
     document.getElementById('studentBox').style.display = isTeacher ? 'none' : 'block';
   }
+  // Teacher registration needs the admin password: show the popup first
+  function askAdmin() {
+    const isTeacher = document.querySelector('input[name=role]:checked').value === 'teacher';
+    if (isTeacher && document.getElementById('adminPw').value === '') {
+      document.getElementById('adminModal').style.display = 'flex';
+      document.getElementById('adminInput').focus();
+      return false;                       // stop the form for now
+    }
+    return true;
+  }
+  function confirmAdmin() {               // OK button of the popup
+    document.getElementById('adminPw').value = document.getElementById('adminInput').value;
+    document.getElementById('regForm').submit();
+  }
+  function cancelAdmin() { document.getElementById('adminModal').style.display = 'none'; }
   </script>
   {% endif %}
   <button>{{ 'Register' if register else 'Login' }}</button>
   <p>{% if register %}Have an account? <a href="/login">Login</a>{% else %}New here? <a href="/register">Register</a>{% endif %}</p>
-</form>{% endblock %}
+</form>{% if register %}
+<div id="adminModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:99">
+  <div class="card" style="width:320px">
+    <h3>🔒 Admin password required</h3>
+    <p>Enter the admin password to register as a teacher.</p>
+    <input type="password" id="adminInput" placeholder="Admin password" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmAdmin();}">
+    <button type="button" onclick="confirmAdmin()">Confirm</button>
+    <button type="button" class="ghost" onclick="cancelAdmin()">Cancel</button>
+  </div>
+</div>{% endif %}
+{% endblock %}
