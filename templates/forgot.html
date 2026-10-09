@@ -4,7 +4,7 @@
   <label><input type="radio" name="role" value="student" checked onclick="showWho()" style="width:auto"> Student</label>
   <label><input type="radio" name="role" value="teacher" onclick="showWho()" style="width:auto"> Teacher</label>
   <input name="username" placeholder="Username" required>
-  <input name="sec_answer" id="ans" placeholder="Security answer: {{ sec_q }}">
+  <label id="ansBox">Security question: <b>{{ sec_q }}</b><input name="sec_answer" placeholder="Your answer"></label>
   <input name="admin_password" id="adm" type="password" placeholder="Admin password" style="display:none">
   <input name="new_password" type="password" placeholder="New password (6+ characters)" required>
   <button>Reset password</button>
@@ -14,7 +14,7 @@
 // Students verify with their security answer, teachers with the admin password
 function showWho() {
   const t = document.querySelector('input[name=role]:checked').value === 'teacher';
-  document.getElementById('ans').style.display = t ? 'none' : 'block';
+  document.getElementById('ansBox').style.display = t ? 'none' : 'block';
   document.getElementById('adm').style.display = t ? 'block' : 'none';
 }
 </script>{% endblock %}
