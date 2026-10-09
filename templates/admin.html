@@ -7,9 +7,9 @@
   <small>Save the downloaded file in Google Drive.</small>
 </form>
 <div class="card scroll"><table>
-  <tr><th>Name</th><th>Username</th><th>Roll</th><th>Subjects</th><th>Pending tasks</th><th>Marks %</th><th>Study hrs</th></tr>
-  {% for s in students %}<tr><td>{{ s.name }}</td><td>{{ s.username }}</td><td>{{ s.roll or '-' }}</td><td>{{ s.subjects }}</td><td>{{ s.pending }}</td><td>{{ s.percent or '--' }}</td><td>{{ s.hours }}</td></tr>
-  {% else %}<tr><td colspan="7">No students have registered under you yet.</td></tr>{% endfor %}
+  <tr><th>Name</th><th>Username</th><th>Roll</th><th>Subjects</th><th>Pending tasks</th><th>Marks %</th><th>Study hrs</th><th>Manage</th></tr>
+  {% for s in students %}<tr><td>{{ s.name }}</td><td>{{ s.username }}</td><td>{{ s.roll or '-' }}</td><td>{{ s.subjects }}</td><td>{{ s.pending }}</td><td>{{ s.percent or '--' }}</td><td>{{ s.hours }}</td><td><a href="/admin/student/{{ s.id }}">✏️ Edit / Delete</a></td></tr>
+  {% else %}<tr><td colspan="8">No students have registered under you yet.</td></tr>{% endfor %}
 </table></div>
 <div class="card"><canvas id="c" height="80"></canvas></div>
 <script>
