@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block body %}
 <h1>Welcome, {{ p.name }} 👋</h1>
 <div class="grid">
-  <div class="card stat"><small>Class</small><b>{{ p.class or '12' }}</b></div>
+  <div class="card stat"><small>Class</small><b>{{ p.class or '12' }}{{ '-' + p.division if p.division }}</b></div>
   <div class="card stat"><small>Subjects</small><b>{{ n_sub }}</b></div>
   <div class="card stat"><small>Upcoming exams</small><b>{{ exams|length }}</b></div>
   <div class="card stat"><small>Pending tasks</small><b>{{ pending }}</b></div>
