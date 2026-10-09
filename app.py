@@ -12,7 +12,8 @@ DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studymate.db")
 # ---------- DATABASE (9 tables; user_id is the foreign key linking data to a student) ----------
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT DEFAULT 'student');
-CREATE TABLE IF NOT EXISTS profiles(user_id INTEGER PRIMARY KEY REFERENCES users(id), name TEXT, class TEXT, school TEXT, roll TEXT, email TEXT, about TEXT);
+CREATE TABLE IF NOT EXISTS profiles(user_id INTEGER PRIMARY KEY REFERENCES users(id), name TEXT, class TEXT, school TEXT, roll TEXT, email TEXT, about TEXT, division TEXT, teacher_id INTEGER REFERENCES users(id));
+CREATE TABLE IF NOT EXISTS teachers(user_id INTEGER PRIMARY KEY REFERENCES users(id), name TEXT NOT NULL, class TEXT NOT NULL, division TEXT NOT NULL, UNIQUE(class, division));
 CREATE TABLE IF NOT EXISTS subjects(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id), name TEXT NOT NULL, teacher TEXT);
 CREATE TABLE IF NOT EXISTS marks(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id), subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE, exam TEXT, obtained REAL, total REAL);
 CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id), title TEXT, priority TEXT, deadline TEXT, done TEXT DEFAULT '0');
@@ -34,11 +35,13 @@ def close_db(e):
     d = g.pop("db", None)
     if d: d.close()
 
-def init_db():                              # creates tables + a demo teacher account
+def init_db():                              # creates tables (and upgrades an older database)
     con = sqlite3.connect(DB); con.executescript(SCHEMA)
-    if not con.execute("SELECT 1 FROM users WHERE username='teacher'").fetchone():
-        con.execute("INSERT INTO users(username,password_hash,role) VALUES('teacher',?,'teacher')",
-                    (generate_password_hash("teacher123"),))
+    cols = [r[1] for r in con.execute("PRAGMA table_info(profiles)")]
+    if "division" not in cols: con.execute("ALTER TABLE profiles ADD COLUMN division TEXT")
+    if "teacher_id" not in cols: con.execute("ALTER TABLE profiles ADD COLUMN teacher_id INTEGER")
+    # remove the old demo teacher account (teacher / teacher123) if it exists
+    con.execute("DELETE FROM users WHERE username='teacher' AND role='teacher' AND id NOT IN (SELECT user_id FROM teachers)")
     con.commit(); con.close()
 
 # ---------- LOGIN HELPERS ----------
@@ -66,20 +69,39 @@ def login():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    # list of class teachers (HRT) so a student can choose theirs
+    teachers = db().execute("SELECT user_id, name, class, division FROM teachers ORDER BY class, division").fetchall()
     if request.method == "POST":
-        name, user, pw = request.form["name"].strip(), request.form["username"].strip(), request.form["password"]
-        if len(pw) < 6 or not user or not name:
+        f = request.form
+        role = f.get("role", "student")
+        name, user, pw = f.get("name", "").strip(), f.get("username", "").strip(), f.get("password", "")
+        if not name or not user or len(pw) < 6:
             flash("Fill all fields; password needs 6+ characters")
         elif db().execute("SELECT 1 FROM users WHERE username=?", (user,)).fetchone():
             flash("Username already taken")
-        else:
-            cur = db().execute("INSERT INTO users(username,password_hash) VALUES(?,?)", (user, generate_password_hash(pw)))
-            uid = cur.lastrowid
-            db().execute("INSERT INTO profiles(user_id,name,class) VALUES(?,?,'12')", (uid, name))
-            for s in ["English", "Physics", "Chemistry", "Mathematics", "Computer Science"]:   # sample subjects
-                db().execute("INSERT INTO subjects(user_id,name) VALUES(?,?)", (uid, s))
-            db().commit(); flash("Registered! Please login."); return redirect("/login")
-    return render_template("auth.html", register=True)
+        elif role == "teacher":                      # ----- register a class teacher (HRT)
+            cls, div = f.get("class", "").strip(), f.get("division", "").strip().upper()
+            if not cls or not div:
+                flash("Enter the class and division you are class teacher of")
+            elif db().execute("SELECT 1 FROM teachers WHERE class=? AND division=?", (cls, div)).fetchone():
+                flash(f"Class {cls}-{div} already has a class teacher")
+            else:
+                cur = db().execute("INSERT INTO users(username,password_hash,role) VALUES(?,?,'teacher')", (user, generate_password_hash(pw)))
+                db().execute("INSERT INTO teachers(user_id,name,class,division) VALUES(?,?,?,?)", (cur.lastrowid, name, cls, div))
+                db().commit(); flash("Teacher registered! Please login."); return redirect("/login")
+        else:                                        # ----- register a student (HRT is mandatory)
+            t = db().execute("SELECT * FROM teachers WHERE user_id=?", (f.get("teacher_id", "0"),)).fetchone()
+            if not t:
+                flash("Please select your class teacher (HRT). Ask your teacher to register first.")
+            else:
+                cur = db().execute("INSERT INTO users(username,password_hash) VALUES(?,?)", (user, generate_password_hash(pw)))
+                uid = cur.lastrowid
+                db().execute("INSERT INTO profiles(user_id,name,class,division,teacher_id) VALUES(?,?,?,?,?)",
+                             (uid, name, t["class"], t["division"], t["user_id"]))
+                for sub in ["English", "Physics", "Chemistry", "Mathematics", "Computer Science"]:   # sample subjects
+                    db().execute("INSERT INTO subjects(user_id,name) VALUES(?,?)", (uid, sub))
+                db().commit(); flash("Registered! Please login."); return redirect("/login")
+    return render_template("auth.html", register=True, teachers=teachers)
 
 @app.route("/logout")
 def logout():
@@ -204,18 +226,19 @@ def profile():
     p = db().execute("SELECT * FROM profiles WHERE user_id=?", (session["uid"],)).fetchone()
     return render_template("profile.html", p=p)
 
-# ---------- TEACHER / ADMIN DEMO PANEL (login: teacher / teacher123) ----------
+# ---------- CLASS TEACHER (HRT) PANEL: shows only the students of this teacher's class ----------
 @app.route("/admin")
 @login_required
 def admin():
     if session.get("role") != "teacher": return redirect("/dashboard")
+    t = db().execute("SELECT * FROM teachers WHERE user_id=?", (session["uid"],)).fetchone()
     students = db().execute("""SELECT u.username, p.name, p.roll,
         (SELECT COUNT(*) FROM subjects WHERE user_id=u.id) subjects,
         (SELECT COUNT(*) FROM tasks WHERE user_id=u.id AND done='0') pending,
         (SELECT ROUND(SUM(obtained)*100.0/SUM(total),1) FROM marks WHERE user_id=u.id) percent,
         (SELECT COALESCE(SUM(hours),0) FROM study_progress WHERE user_id=u.id) hours
-        FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role='student'""").fetchall()
-    return render_template("admin.html", students=students)
+        FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role='student' AND p.teacher_id=?""", (session["uid"],)).fetchall()
+    return render_template("admin.html", students=students, t=t)
 
 if __name__ == "__main__":
     init_db()
