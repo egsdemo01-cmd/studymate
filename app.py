@@ -13,7 +13,7 @@ DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studymate.db")
 
 # ---------- DATABASE (9 tables; user_id is the foreign key linking data to a student) ----------
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT DEFAULT 'student');
+CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT DEFAULT 'student', sec_answer_hash TEXT);
 CREATE TABLE IF NOT EXISTS profiles(user_id INTEGER PRIMARY KEY REFERENCES users(id), name TEXT, class TEXT, school TEXT, roll TEXT, email TEXT, about TEXT, division TEXT, teacher_id INTEGER REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS teachers(user_id INTEGER PRIMARY KEY REFERENCES users(id), name TEXT NOT NULL, class TEXT NOT NULL, division TEXT NOT NULL, UNIQUE(class, division));
 CREATE TABLE IF NOT EXISTS subjects(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id), name TEXT NOT NULL, teacher TEXT);
@@ -40,6 +40,8 @@ def close_db(e):
 def init_db():                              # creates tables (and upgrades an older database)
     con = sqlite3.connect(DB); con.executescript(SCHEMA)
     cols = [r[1] for r in con.execute("PRAGMA table_info(profiles)")]
+    if "sec_answer_hash" not in [r[1] for r in con.execute("PRAGMA table_info(users)")]:
+        con.execute("ALTER TABLE users ADD COLUMN sec_answer_hash TEXT")
     if "division" not in cols: con.execute("ALTER TABLE profiles ADD COLUMN division TEXT")
     if "teacher_id" not in cols: con.execute("ALTER TABLE profiles ADD COLUMN teacher_id INTEGER")
     # remove the old demo teacher account (teacher / teacher123) if it exists
@@ -54,6 +56,17 @@ def login_required(f):                      # decorator: blocks pages if not log
             return redirect("/login")
         return f(*a, **k)
     return wrapper
+
+SEC_QUESTION = "What is the name of your first school?"      # used to reset a forgotten password
+
+def admin_ok(pw):                           # True if the typed admin password is correct
+    return check_password_hash(ADMIN_PASSWORD_HASH, pw or "")
+
+def delete_user(uid):                       # removes a user and ALL their data from every table
+    for t in ["marks", "tasks", "timetable", "exams", "notes", "study_progress", "subjects", "profiles", "teachers"]:
+        db().execute(f"DELETE FROM {t} WHERE user_id=?", (uid,))
+    db().execute("DELETE FROM users WHERE id=?", (uid,))
+    db().commit()
 
 @app.route("/")
 def home():
@@ -95,17 +108,45 @@ def register():
                 db().commit(); flash("Teacher registered! Please login."); return redirect("/login")
         else:                                        # ----- register a student (HRT is mandatory)
             t = db().execute("SELECT * FROM teachers WHERE user_id=?", (f.get("teacher_id", "0"),)).fetchone()
+            ans = f.get("sec_answer", "").strip().lower()
             if not t:
                 flash("Please select your class teacher (HRT). Ask your teacher to register first.")
+            elif not ans:
+                flash("Enter the security answer (needed if you forget your password)")
             else:
-                cur = db().execute("INSERT INTO users(username,password_hash) VALUES(?,?)", (user, generate_password_hash(pw)))
+                cur = db().execute("INSERT INTO users(username,password_hash,sec_answer_hash) VALUES(?,?,?)", (user, generate_password_hash(pw), generate_password_hash(ans)))
                 uid = cur.lastrowid
                 db().execute("INSERT INTO profiles(user_id,name,class,division,teacher_id) VALUES(?,?,?,?,?)",
                              (uid, name, t["class"], t["division"], t["user_id"]))
                 for sub in ["English", "Physics", "Chemistry", "Mathematics", "Computer Science"]:   # sample subjects
                     db().execute("INSERT INTO subjects(user_id,name) VALUES(?,?)", (uid, sub))
                 db().commit(); flash("Registered! Please login."); return redirect("/login")
-    return render_template("auth.html", register=True, teachers=teachers)
+    return render_template("auth.html", register=True, teachers=teachers, sec_q=SEC_QUESTION)
+
+@app.route("/forgot", methods=["GET", "POST"])
+def forgot():
+    if request.method == "POST":
+        f = request.form
+        role, new = f.get("role", "student"), f.get("new_password", "")
+        u = db().execute("SELECT * FROM users WHERE username=?", (f.get("username", "").strip(),)).fetchone()
+        msg = None
+        if len(new) < 6:
+            msg = "New password needs 6+ characters"
+        elif not u or u["role"] != role:
+            msg = "Account not found"
+        else:
+            if role == "teacher":            # teacher proves identity with the admin password
+                ok = admin_ok(f.get("admin_password"))
+            else:                            # student proves identity with the security answer
+                ok = bool(u["sec_answer_hash"]) and check_password_hash(u["sec_answer_hash"], f.get("sec_answer", "").strip().lower())
+            if not ok:
+                msg = "Verification failed. A student with no security answer should ask the class teacher to reset the password."
+        if msg:
+            flash(msg)
+        else:
+            db().execute("UPDATE users SET password_hash=? WHERE id=?", (generate_password_hash(new), u["id"]))
+            db().commit(); flash("Password changed. Please login."); return redirect("/login")
+    return render_template("forgot.html", sec_q=SEC_QUESTION)
 
 @app.route("/logout")
 def logout():
@@ -222,13 +263,30 @@ def dashboard():
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
+    if session.get("role") != "student": return redirect("/admin")
     if request.method == "POST":
         f = request.form
-        db().execute("UPDATE profiles SET name=?,class=?,school=?,roll=?,email=?,about=? WHERE user_id=?",
-                     (f["name"], f["class"], f["school"], f["roll"], f["email"], f["about"], session["uid"]))
-        db().commit(); flash("Profile updated")
+        me = db().execute("SELECT * FROM users WHERE id=?", (session["uid"],)).fetchone()
+        if not check_password_hash(me["password_hash"], f.get("current_password", "")):
+            flash("Wrong password - profile not changed")          # ID password is required to edit
+        else:
+            db().execute("UPDATE profiles SET name=?,school=?,roll=?,email=?,about=? WHERE user_id=?",
+                         (f["name"], f["school"], f["roll"], f["email"], f["about"], session["uid"]))
+            if f.get("sec_answer", "").strip():
+                db().execute("UPDATE users SET sec_answer_hash=? WHERE id=?", (generate_password_hash(f["sec_answer"].strip().lower()), session["uid"]))
+            db().commit(); flash("Profile updated")
     p = db().execute("SELECT * FROM profiles WHERE user_id=?", (session["uid"],)).fetchone()
-    return render_template("profile.html", p=p)
+    return render_template("profile.html", p=p, sec_q=SEC_QUESTION)
+
+@app.route("/profile/delete", methods=["POST"])
+@login_required
+def delete_account():                       # student deletes own account (needs own password)
+    if session.get("role") != "student": return redirect("/admin")
+    me = db().execute("SELECT * FROM users WHERE id=?", (session["uid"],)).fetchone()
+    if not check_password_hash(me["password_hash"], request.form.get("current_password", "")):
+        flash("Wrong password - account not deleted"); return redirect("/profile")
+    delete_user(session["uid"]); session.clear(); flash("Your account and all its data were deleted")
+    return redirect("/login")
 
 # ---------- CLASS TEACHER (HRT) PANEL: shows only the students of this teacher's class ----------
 @app.route("/admin")
@@ -236,13 +294,80 @@ def profile():
 def admin():
     if session.get("role") != "teacher": return redirect("/dashboard")
     t = db().execute("SELECT * FROM teachers WHERE user_id=?", (session["uid"],)).fetchone()
-    students = db().execute("""SELECT u.username, p.name, p.roll,
+    students = db().execute("""SELECT u.id, u.username, p.name, p.roll,
         (SELECT COUNT(*) FROM subjects WHERE user_id=u.id) subjects,
         (SELECT COUNT(*) FROM tasks WHERE user_id=u.id AND done='0') pending,
         (SELECT ROUND(SUM(obtained)*100.0/SUM(total),1) FROM marks WHERE user_id=u.id) percent,
         (SELECT COALESCE(SUM(hours),0) FROM study_progress WHERE user_id=u.id) hours
         FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role='student' AND p.teacher_id=?""", (session["uid"],)).fetchall()
     return render_template("admin.html", students=students, t=t)
+
+# ---------- TEACHER'S OWN ACCOUNT: edit/delete needs ADMIN password + the teacher's own password ----------
+@app.route("/teacher/account", methods=["GET", "POST"])
+@login_required
+def teacher_account():
+    if session.get("role") != "teacher": return redirect("/dashboard")
+    uid = session["uid"]
+    me = db().execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if request.method == "POST":
+        f = request.form
+        name, cls, div = f.get("name", "").strip(), f.get("class", "").strip(), f.get("division", "").strip().upper()
+        if not admin_ok(f.get("admin_password")) or not check_password_hash(me["password_hash"], f.get("password", "")):
+            flash("Wrong admin password or wrong teacher password")
+        elif not name or not cls or not div:
+            flash("Fill all fields")
+        elif db().execute("SELECT 1 FROM teachers WHERE class=? AND division=? AND user_id<>?", (cls, div, uid)).fetchone():
+            flash(f"Class {cls}-{div} already has a class teacher")
+        else:
+            db().execute("UPDATE teachers SET name=?,class=?,division=? WHERE user_id=?", (name, cls, div, uid))
+            db().execute("UPDATE profiles SET class=?,division=? WHERE teacher_id=?", (cls, div, uid))   # keep students in sync
+            db().commit(); flash("Teacher record updated")
+    t = db().execute("SELECT * FROM teachers WHERE user_id=?", (uid,)).fetchone()
+    return render_template("teacher_account.html", t=t)
+
+@app.route("/teacher/delete", methods=["POST"])
+@login_required
+def teacher_delete():
+    if session.get("role") != "teacher": return redirect("/dashboard")
+    uid = session["uid"]
+    me = db().execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    f = request.form
+    if not admin_ok(f.get("admin_password")) or not check_password_hash(me["password_hash"], f.get("password", "")):
+        flash("Wrong admin password or wrong teacher password")
+    elif db().execute("SELECT 1 FROM profiles WHERE teacher_id=?", (uid,)).fetchone():
+        flash("You still have students. Delete them from the Teacher Panel first.")
+    else:
+        delete_user(uid); session.clear(); flash("Teacher record deleted"); return redirect("/login")
+    return redirect("/teacher/account")
+
+# ---------- TEACHER PANEL: edit / delete a student of own class (needs admin password) ----------
+@app.route("/admin/student/<int:sid>", methods=["GET", "POST"])
+@login_required
+def admin_student(sid):
+    if session.get("role") != "teacher": return redirect("/dashboard")
+    q = "SELECT p.*, u.username FROM profiles p JOIN users u ON u.id=p.user_id WHERE p.user_id=? AND p.teacher_id=?"
+    s = db().execute(q, (sid, session["uid"])).fetchone()
+    if not s:
+        flash("Student not found in your class"); return redirect("/admin")
+    if request.method == "POST":
+        f = request.form
+        new_pw = f.get("new_password", "")
+        if not admin_ok(f.get("admin_password")):
+            flash("Wrong admin password")
+        elif f.get("action") == "delete":
+            delete_user(sid); flash("Student record deleted"); return redirect("/admin")
+        elif not f.get("name", "").strip():
+            flash("Name cannot be empty")
+        elif new_pw and len(new_pw) < 6:
+            flash("New password needs 6+ characters")
+        else:
+            db().execute("UPDATE profiles SET name=?,school=?,roll=?,email=? WHERE user_id=?",
+                         (f["name"].strip(), f.get("school", ""), f.get("roll", ""), f.get("email", ""), sid))
+            if new_pw:                       # teacher can also reset a student's password
+                db().execute("UPDATE users SET password_hash=? WHERE id=?", (generate_password_hash(new_pw), sid))
+            db().commit(); flash("Student record updated")
+        s = db().execute(q, (sid, session["uid"])).fetchone()
+    return render_template("student_manage.html", s=s)
 
 # ---------- BACKUP: download a copy of the database (to save in Google Drive) ----------
 @app.route("/backup", methods=["POST"])
