@@ -18,7 +18,7 @@
       <option value="">-- Select your teacher --</option>
       {% for t in teachers %}<option value="{{ t.user_id }}">{{ t.name }} (Class {{ t.class }}-{{ t.division }})</option>{% endfor %}
     </select></label>
-    <input name="sec_answer" placeholder="Security answer: {{ sec_q }}">
+    <label>Security question: <b>{{ sec_q }}</b><input name="sec_answer" placeholder="Your answer"></label>
     {% if not teachers %}<small>No teacher registered yet. Ask your class teacher to register first.</small>{% endif %}
   </div>
   <div id="teacherBox" style="display:none">
