@@ -1,8 +1,8 @@
 # StudyMate - Class 12 Student Study & Exam Management Portal (Flask + SQLite)
-import sqlite3, os
+import sqlite3, os, io, tempfile
 from datetime import date
 from functools import wraps
-from flask import Flask, render_template, request, redirect, session, flash, g
+from flask import Flask, render_template, request, redirect, session, flash, g, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -243,6 +243,21 @@ def admin():
         (SELECT COALESCE(SUM(hours),0) FROM study_progress WHERE user_id=u.id) hours
         FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role='student' AND p.teacher_id=?""", (session["uid"],)).fetchall()
     return render_template("admin.html", students=students, t=t)
+
+# ---------- BACKUP: download a copy of the database (to save in Google Drive) ----------
+@app.route("/backup", methods=["POST"])
+@login_required
+def backup():
+    if session.get("role") != "teacher": return redirect("/dashboard")
+    if not check_password_hash(ADMIN_PASSWORD_HASH, request.form.get("admin_password", "")):
+        flash("Wrong admin password"); return redirect("/admin")
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".db"); tmp.close()
+    copy = sqlite3.connect(tmp.name)
+    db().backup(copy)                       # safe snapshot of the live database
+    copy.close()
+    with open(tmp.name, "rb") as fh: data = io.BytesIO(fh.read())
+    os.remove(tmp.name)
+    return send_file(data, as_attachment=True, download_name=f"studymate-backup-{date.today()}.db")
 
 if __name__ == "__main__":
     init_db()
