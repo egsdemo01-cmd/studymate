@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block body %}
+<h1>👩‍🎓 {{ s.name }} <small>({{ s.username }})</small></h1>
+<p><a href="/admin">← Back to Teacher Panel</a> · Needs the <b>admin password</b>.</p>
+<form method="post" class="card form">
+  <h3>Edit student</h3>
+  <input type="hidden" name="action" value="edit">
+  <label>Name<input name="name" value="{{ s.name or '' }}" required></label>
+  <label>Roll number<input name="roll" value="{{ s.roll or '' }}"></label>
+  <label>School<input name="school" value="{{ s.school or '' }}"></label>
+  <label>Email<input name="email" type="email" value="{{ s.email or '' }}"></label>
+  <label>New password (optional reset)<input name="new_password" type="password"></label>
+  <label>Admin password<input name="admin_password" type="password" required></label>
+  <button>Save changes</button>
+</form>
+<form method="post" class="card form" onsubmit="return confirm('Delete this student and ALL their data?')">
+  <h3>🗑️ Delete student</h3>
+  <input type="hidden" name="action" value="delete">
+  <label>Admin password<input name="admin_password" type="password" required></label>
+  <button class="danger">Delete student record</button>
+</form>{% endblock %}
