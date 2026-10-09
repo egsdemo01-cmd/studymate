@@ -2,10 +2,17 @@
 <h1>👤 My Profile</h1>
 <form method="post" class="card form">
   <label>Name<input name="name" value="{{ p.name or '' }}" required></label>
-  <label>Class<input name="class" value="{{ p.class or '' }}"></label>
+  <label>Class (set by your class teacher)<input value="{{ p.class or '' }}{{ '-' + p.division if p.division }}" disabled></label>
   <label>School<input name="school" value="{{ p.school or '' }}"></label>
   <label>Roll number<input name="roll" value="{{ p.roll or '' }}"></label>
   <label>Email<input name="email" type="email" value="{{ p.email or '' }}"></label>
   <label>About me<textarea name="about" rows="4">{{ p.about or '' }}</textarea></label>
+  <label>Security answer (to reset a forgotten password; leave blank to keep the old one)<input name="sec_answer" placeholder="{{ sec_q }}"></label>
+  <label>Your password (required to save) *<input name="current_password" type="password" required></label>
   <button>Save profile</button>
+</form>
+<form method="post" action="/profile/delete" class="card form" onsubmit="return confirm('Delete your account and ALL your data? This cannot be undone.')">
+  <h3>🗑️ Delete my account</h3>
+  <label>Your password<input name="current_password" type="password" required></label>
+  <button class="danger">Delete my account</button>
 </form>{% endblock %}
