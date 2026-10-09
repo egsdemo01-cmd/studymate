@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block body %}
+<form method="post" class="card auth">
+  <h2>🔑 Forgot password</h2>
+  <label><input type="radio" name="role" value="student" checked onclick="showWho()" style="width:auto"> Student</label>
+  <label><input type="radio" name="role" value="teacher" onclick="showWho()" style="width:auto"> Teacher</label>
+  <input name="username" placeholder="Username" required>
+  <input name="sec_answer" id="ans" placeholder="Security answer: {{ sec_q }}">
+  <input name="admin_password" id="adm" type="password" placeholder="Admin password" style="display:none">
+  <input name="new_password" type="password" placeholder="New password (6+ characters)" required>
+  <button>Reset password</button>
+  <p><a href="/login">Back to login</a></p>
+</form>
+<script>
+// Students verify with their security answer, teachers with the admin password
+function showWho() {
+  const t = document.querySelector('input[name=role]:checked').value === 'teacher';
+  document.getElementById('ans').style.display = t ? 'none' : 'block';
+  document.getElementById('adm').style.display = t ? 'block' : 'none';
+}
+</script>{% endblock %}
