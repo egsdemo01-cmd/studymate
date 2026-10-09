@@ -1,5 +1,11 @@
 {% extends "base.html" %}{% block body %}
 <h1>🧑‍🏫 Class {{ t.class }}-{{ t.division }} — {{ t.name }}</h1>
+<form method="post" action="/backup" class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  <b>💾 Backup database</b>
+  <input type="password" name="admin_password" placeholder="Admin password" required style="width:200px;margin:0">
+  <button>Download backup</button>
+  <small>Save the downloaded file in Google Drive.</small>
+</form>
 <div class="card scroll"><table>
   <tr><th>Name</th><th>Username</th><th>Roll</th><th>Subjects</th><th>Pending tasks</th><th>Marks %</th><th>Study hrs</th></tr>
   {% for s in students %}<tr><td>{{ s.name }}</td><td>{{ s.username }}</td><td>{{ s.roll or '-' }}</td><td>{{ s.subjects }}</td><td>{{ s.pending }}</td><td>{{ s.percent or '--' }}</td><td>{{ s.hours }}</td></tr>
