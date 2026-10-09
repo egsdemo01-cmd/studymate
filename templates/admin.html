@@ -1,9 +1,9 @@
 {% extends "base.html" %}{% block body %}
-<h1>🧑‍🏫 Teacher Panel</h1>
+<h1>🧑‍🏫 Class {{ t.class }}-{{ t.division }} — {{ t.name }}</h1>
 <div class="card scroll"><table>
   <tr><th>Name</th><th>Username</th><th>Roll</th><th>Subjects</th><th>Pending tasks</th><th>Marks %</th><th>Study hrs</th></tr>
   {% for s in students %}<tr><td>{{ s.name }}</td><td>{{ s.username }}</td><td>{{ s.roll or '-' }}</td><td>{{ s.subjects }}</td><td>{{ s.pending }}</td><td>{{ s.percent or '--' }}</td><td>{{ s.hours }}</td></tr>
-  {% else %}<tr><td colspan="7">No students registered yet.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="7">No students have registered under you yet.</td></tr>{% endfor %}
 </table></div>
 <div class="card"><canvas id="c" height="80"></canvas></div>
 <script>
