@@ -7,6 +7,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "change-this-secret-key"          # needed for sessions
+# Admin password needed to register a teacher. Only the HASH is stored, not the plain password.
+ADMIN_PASSWORD_HASH = "scrypt:32768:8:1$FN4Sb4oicRgd1sD3$634705d61b087afe881efc35f5038bd88752cd6977db30f9f9d4e7322817ec9841261dd600b1784452542de441015450b9aa98dbc30c06041221a9edd0016d14"
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studymate.db")
 
 # ---------- DATABASE (9 tables; user_id is the foreign key linking data to a student) ----------
@@ -81,7 +83,9 @@ def register():
             flash("Username already taken")
         elif role == "teacher":                      # ----- register a class teacher (HRT)
             cls, div = f.get("class", "").strip(), f.get("division", "").strip().upper()
-            if not cls or not div:
+            if not check_password_hash(ADMIN_PASSWORD_HASH, f.get("admin_password", "")):
+                flash("Wrong admin password. Only authorised teachers can register.")
+            elif not cls or not div:
                 flash("Enter the class and division you are class teacher of")
             elif db().execute("SELECT 1 FROM teachers WHERE class=? AND division=?", (cls, div)).fetchone():
                 flash(f"Class {cls}-{div} already has a class teacher")
