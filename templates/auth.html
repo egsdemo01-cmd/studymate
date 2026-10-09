@@ -1,9 +1,36 @@
 {% extends "base.html" %}{% block body %}
 <form method="post" class="card auth">
   <h1>🎓 StudyMate</h1><p>Class 12 CBSE Study & Exam Portal</p>
-  {% if register %}<input name="name" placeholder="Full name" required>{% endif %}
+  {% if register %}
+  <!-- Choose who is registering; JavaScript shows the matching fields -->
+  <label><input type="radio" name="role" value="student" checked onclick="showRole()" style="width:auto"> Student</label>
+  <label><input type="radio" name="role" value="teacher" onclick="showRole()" style="width:auto"> Class Teacher (HRT)</label>
+  <input name="name" placeholder="Full name" required>
+  {% endif %}
   <input name="username" placeholder="Username" required>
   <input name="password" type="password" placeholder="Password" required>
+  {% if register %}
+  <div id="studentBox">
+    <label>Your class teacher (HRT) *
+    <select name="teacher_id">
+      <option value="">-- Select your teacher --</option>
+      {% for t in teachers %}<option value="{{ t.user_id }}">{{ t.name }} (Class {{ t.class }}-{{ t.division }})</option>{% endfor %}
+    </select></label>
+    {% if not teachers %}<small>No teacher registered yet. Ask your class teacher to register first.</small>{% endif %}
+  </div>
+  <div id="teacherBox" style="display:none">
+    <input name="class" placeholder="Class (e.g. 12)">
+    <input name="division" placeholder="Division (e.g. A)">
+  </div>
+  <script>
+  // Show student or teacher fields depending on the selected radio button
+  function showRole() {
+    const isTeacher = document.querySelector('input[name=role]:checked').value === 'teacher';
+    document.getElementById('teacherBox').style.display = isTeacher ? 'block' : 'none';
+    document.getElementById('studentBox').style.display = isTeacher ? 'none' : 'block';
+  }
+  </script>
+  {% endif %}
   <button>{{ 'Register' if register else 'Login' }}</button>
-  <p>{% if register %}Have an account? <a href="/login">Login</a>{% else %}New here? <a href="/register">Register</a><br><small>Teacher demo: teacher / teacher123</small>{% endif %}</p>
+  <p>{% if register %}Have an account? <a href="/login">Login</a>{% else %}New here? <a href="/register">Register</a>{% endif %}</p>
 </form>{% endblock %}
