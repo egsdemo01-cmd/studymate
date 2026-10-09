@@ -7,7 +7,7 @@
   <label>Roll number<input name="roll" value="{{ p.roll or '' }}"></label>
   <label>Email<input name="email" type="email" value="{{ p.email or '' }}"></label>
   <label>About me<textarea name="about" rows="4">{{ p.about or '' }}</textarea></label>
-  <label>Security answer (to reset a forgotten password; leave blank to keep the old one)<input name="sec_answer" placeholder="{{ sec_q }}"></label>
+  <label>Security question: <b>{{ sec_q }}</b><input name="sec_answer" placeholder="Your answer (leave blank to keep the old one)"></label>
   <label>Your password (required to save) *<input name="current_password" type="password" required></label>
   <button>Save profile</button>
 </form>
