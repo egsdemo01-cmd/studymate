@@ -9,6 +9,7 @@
   {% endif %}
   <input name="username" placeholder="Username" required>
   <input name="password" type="password" placeholder="Password" required>
+  {% if not register %}<small><a href="/forgot">Forgot password?</a></small>{% endif %}
   {% if register %}
   <input type="hidden" name="admin_password" id="adminPw">
   <div id="studentBox">
@@ -17,6 +18,7 @@
       <option value="">-- Select your teacher --</option>
       {% for t in teachers %}<option value="{{ t.user_id }}">{{ t.name }} (Class {{ t.class }}-{{ t.division }})</option>{% endfor %}
     </select></label>
+    <input name="sec_answer" placeholder="Security answer: {{ sec_q }}">
     {% if not teachers %}<small>No teacher registered yet. Ask your class teacher to register first.</small>{% endif %}
   </div>
   <div id="teacherBox" style="display:none">
@@ -54,6 +56,7 @@
   <div class="card" style="width:320px">
     <h3>🔒 Admin password required</h3>
     <p>Enter the admin password to register as a teacher.</p>
+    <small>Forgot it? The admin password is set by the school admin and can only be changed in <code>app.py</code>.</small>
     <input type="password" id="adminInput" placeholder="Admin password" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmAdmin();}">
     <button type="button" onclick="confirmAdmin()">Confirm</button>
     <button type="button" class="ghost" onclick="cancelAdmin()">Cancel</button>
